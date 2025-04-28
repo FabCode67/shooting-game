@@ -153,27 +153,36 @@ export const CharacterController = ({
         lockRotations
         type={isHost() ? "dynamic" : "kinematicPosition"}
         onIntersectionEnter={({ other }) => {
-          if (
-            isHost() &&
-            other.rigidBody.userData.type === "bullet" &&
-            state.state.health > 0
-          ) {
-            const newHealth =
-              state.state.health - other.rigidBody.userData.damage;
-            if (newHealth <= 0) {
-              state.setState("deaths", state.state.deaths + 1);
-              state.setState("dead", true);
-              state.setState("health", 0);
-              rigidbody.current.setEnabled(false);
-              setTimeout(() => {
-                spawnRandomly();
+        if (
+        isHost() &&
+        other.rigidBody.userData.type === "bullet" &&
+        state.state.health > 0
+        ) {
+        // Initialize hits if not already set
+        const currentHits = state.state.hits || 0;
+        // Increment hit counter
+        const newHits = currentHits + 1;
+        state.setState("hits", newHits);
+        
+        // Apply damage to health bar for visual feedback
+        const newHealth = state.state.health - other.rigidBody.userData.damage;
+        state.setState("health", newHealth);
+        
+        // Kill opponent after 3 hits
+        if (newHits >= 3) {
+        state.setState("deaths", state.state.deaths + 1);
+        state.setState("dead", true);
+          state.setState("health", 0);
+        rigidbody.current.setEnabled(false);
+          setTimeout(() => {
+              spawnRandomly();
                 rigidbody.current.setEnabled(true);
                 state.setState("health", 100);
                 state.setState("dead", false);
+                // Reset hit counter on respawn
+                state.setState("hits", 0);
               }, 2000);
               onKilled(state.id, other.rigidBody.userData.player);
-            } else {
-              state.setState("health", newHealth);
             }
           }
         }}
@@ -220,10 +229,12 @@ export const CharacterController = ({
 const PlayerInfo = ({ state }) => {
   const health = state.health;
   const name = state.profile.name;
+  const hits = state.hits || 0;
+  
   return (
     <Billboard position-y={2.5}>
       <Text position-y={0.36} fontSize={0.4}>
-        {name}
+        {name} {hits > 0 ? `[${hits}/3]` : ''}
         <meshBasicMaterial color={state.profile.color} />
       </Text>
       <mesh position-z={-0.1}>
