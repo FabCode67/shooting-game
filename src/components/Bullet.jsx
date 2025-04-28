@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { MeshBasicMaterial } from "three";
 import { WEAPON_OFFSET } from "./CharacterController";
 
-const BULLET_SPEED = 20;
+const BULLET_SPEED = 25; // Increased from 20 for faster bullets, making hitting targets easier
 
 const bulletMaterial = new MeshBasicMaterial({
   color: "hotpink",
@@ -52,7 +52,7 @@ export const Bullet = ({ player, angle, position, onHit }) => {
           }}
         >
           <mesh position-z={0.25} material={bulletMaterial} castShadow>
-            <boxGeometry args={[0.05, 0.05, 0.5]} />
+            <boxGeometry args={[0.15, 0.15, 0.8]} /> {/* Increased bullet size for easier hits */}
           </mesh>
         </RigidBody>
       </group>

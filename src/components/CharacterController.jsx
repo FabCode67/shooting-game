@@ -4,7 +4,7 @@ import { CapsuleCollider, RigidBody, vec3 } from "@react-three/rapier";
 import { isHost } from "playroomkit";
 import { useEffect, useRef, useState } from "react";
 import { CharacterSoldier } from "./CharacterSoldier";
-const MOVEMENT_SPEED = 202;
+const MOVEMENT_SPEED = 250; // Increased for faster running
 const FIRE_RATE = 380;
 export const WEAPON_OFFSET = {
   x: -0.2,
@@ -91,13 +91,32 @@ export const CharacterController = ({
     const angle = joystick.angle();
     if (joystick.isJoystickPressed() && angle) {
       setAnimation("Run");
-      character.current.rotation.y = angle;
+      
+      // Implement smooth turning with limited rotation speed
+      const currentRotation = character.current.rotation.y;
+      const targetRotation = angle;
+      
+      // Calculate the shortest angle difference (accounting for wrapping)
+      let angleDiff = targetRotation - currentRotation;
+      if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      
+      // Limit rotation speed (lower value = slower turning)
+      const maxRotationPerFrame = 1.2 * delta; // Decreased turning speed
+      const clampedAngleDiff = Math.max(
+        -maxRotationPerFrame,
+        Math.min(maxRotationPerFrame, angleDiff)
+      );
+      
+      // Apply the limited rotation
+      character.current.rotation.y = currentRotation + clampedAngleDiff;
 
-      // move character in its own direction
+      // move character in its own direction (based on current rotation, not target angle)
+      const movementAngle = character.current.rotation.y;
       const impulse = {
-        x: Math.sin(angle) * MOVEMENT_SPEED * delta,
+        x: Math.sin(movementAngle) * MOVEMENT_SPEED * delta,
         y: 0,
-        z: Math.cos(angle) * MOVEMENT_SPEED * delta,
+        z: Math.cos(movementAngle) * MOVEMENT_SPEED * delta,
       };
 
       rigidbody.current.applyImpulse(impulse, true);
@@ -111,13 +130,35 @@ export const CharacterController = ({
       setAnimation(
         joystick.isJoystickPressed() && angle ? "Run_Shoot" : "Idle_Shoot"
       );
+      
+      // When shooting, also apply the same slow turning logic
+      if (angle) {
+        const currentRotation = character.current.rotation.y;
+        const targetRotation = angle;
+        
+        // Calculate the shortest angle difference (accounting for wrapping)
+        let angleDiff = targetRotation - currentRotation;
+        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        // Limit rotation speed
+        const maxRotationPerFrame = 1.0 * delta; // Even slower turning when aiming
+        const clampedAngleDiff = Math.max(
+          -maxRotationPerFrame,
+          Math.min(maxRotationPerFrame, angleDiff)
+        );
+        
+        // Apply the limited rotation
+        character.current.rotation.y = currentRotation + clampedAngleDiff;
+      }
+      
       if (isHost()) {
         if (Date.now() - lastShoot.current > FIRE_RATE) {
           lastShoot.current = Date.now();
           const newBullet = {
             id: state.id + "-" + +new Date(),
             position: vec3(rigidbody.current.translation()),
-            angle,
+            angle: character.current.rotation.y, // Use actual character rotation, not joystick angle
             player: state.id,
           };
           onFire(newBullet);
@@ -220,7 +261,7 @@ export const CharacterController = ({
             shadow-bias={-0.0001}
           />
         )}
-        <CapsuleCollider args={[0.7, 0.6]} position={[0, 1.28, 0]} />
+        <CapsuleCollider args={[1.0, 0.8]} position={[0, 1.28, 0]} /> {/* Increased collision size for easier targeting */}
       </RigidBody>
     </group>
   );
@@ -252,32 +293,39 @@ const PlayerInfo = ({ state }) => {
 const Crosshair = (props) => {
   return (
     <group {...props}>
+      {/* Enhanced crosshair with larger, more visible elements */}
       <mesh position-z={1}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" transparent opacity={0.9} />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" transparent opacity={0.9} />
       </mesh>
       <mesh position-z={2}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" transparent opacity={0.85} />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" transparent opacity={0.85} />
       </mesh>
       <mesh position-z={3}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" transparent opacity={0.8} />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" transparent opacity={0.8} />
       </mesh>
 
       <mesh position-z={4.5}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" opacity={0.7} transparent />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" opacity={0.7} transparent />
       </mesh>
 
       <mesh position-z={6.5}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" opacity={0.6} transparent />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" opacity={0.6} transparent />
       </mesh>
 
       <mesh position-z={9}>
-        <boxGeometry args={[0.05, 0.05, 0.05]} />
-        <meshBasicMaterial color="black" opacity={0.2} transparent />
+        <boxGeometry args={[0.08, 0.08, 0.08]} />
+        <meshBasicMaterial color="red" opacity={0.4} transparent />
+      </mesh>
+      
+      {/* Add a targeting circle at mid-range for better visual guidance */}
+      <mesh position-z={5}>
+        <ringGeometry args={[0.2, 0.22, 16]} />
+        <meshBasicMaterial color="red" opacity={0.5} transparent />
       </mesh>
     </group>
   );
